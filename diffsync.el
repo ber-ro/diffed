@@ -30,6 +30,8 @@
 ;; There are shortcuts for the following operations: copy, move, delete, ediff,
 ;; find-file.
 
+;; Usage: (diffsync "/dir/1" "/dir/2")
+
 ;;; Code:
 
 (require 'diff-mode)
