@@ -26,7 +26,9 @@
 
 ;;; Commentary:
 
-;; Diffsync uses diff output as a base for synchronization.
+;; Diffsync uses diff output as a base for directory synchronization.
+;; There are shortcuts for the following operations: copy, move, delete, ediff,
+;; find-file.
 
 ;;; Code:
 
@@ -47,13 +49,14 @@
 Only the list of files is visible on startup. Detailed file differences are
 hidden, but can be toggled.
 
-Some operations need to select a file to operate on. If a file must be selected,
-then '1' selects the one belonging to the first diff directory parameter, '2'
-accordingly the second parameter, and '0' selects both.
+Example: (diffsync \"/dir-a/\" \"/dir-b/\")
 
-If for copy or move operations a file belonging to the first parameter is
-selected, then the target is the corresponding directory under the second diff
-directory parameter ('other directory') and vice versa."
+Some operations need to select a file to operate on. These are selected by
+numeric prefix keys. '1' selects the file below /dir-a (1st parameter), '2'
+selects the file below /dir-b (2nd parameter) and '0' selects both.
+
+After copy, move and rename a text tag is inserted and further operations are
+not allowed on the respective file."
   :group 'tools
   (setq-local revert-buffer-function #'diffsync-revert-buffer))
 
@@ -142,7 +145,7 @@ DIR1 and DIR2 are the directories to sync."
 Query user, if ARG is required, but not supplied."
   (let ((files (diffsync-get-filenames)))
     (cond ((= 1 (length files)) files)
-          (t (mapcar #'(lambda (arg) (nth arg files)) (diffsync-choice arg))))))
+          (t (mapcar (lambda (arg) (nth arg files)) (diffsync-choice arg))))))
 
 (defun diffsync-choice (arg)
   "Return indices of selected files (0, 1, 0/1).
@@ -217,15 +220,11 @@ TEXT is description for the message"
   "Get other file.
 FILENAME is below first (return second) or second (return first) diff directory
 parameter."
-  (let* ((prefix1 (string-prefix-p diffsync-dir1 filename))
-         (prefix2 (string-prefix-p diffsync-dir2 filename))
-         (length1 (length diffsync-dir1))
-         (length2 (length diffsync-dir2))
-         (firstp (and prefix1
-                      (or (not prefix2)) (> length1 length2)))
-         (from (if firstp diffsync-dir1 diffsync-dir2))
-         (to (if firstp diffsync-dir2 diffsync-dir1)))
-    (concat to (substring filename (length from)))))
+  (let* ((relative1 (file-relative-name filename diffsync-dir1))
+         (relative2 (file-relative-name filename diffsync-dir2))
+         (firstp (< (length relative1) (length relative2))))
+    (expand-file-name (if firstp relative1 relative2)
+                      (if firstp diffsync-dir2 diffsync-dir1))))
 
 (defun diffsync-ediff ()
   "Invoke ediff for current file."
@@ -240,8 +239,6 @@ parameter."
   (switch-to-buffer diffsync-buffer)
   (delete-other-windows)
   (remove-hook 'ediff-quit-hook #'diffsync-ediff-hook))
-
-(diffsync "c:/cygwin64/tmp/diffsync/1/" "c:/cygwin64/tmp/diffsync/ 2/")
 
 (provide 'diffsync)
 ;;; diffsync.el ends here
