@@ -169,7 +169,8 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
                      (member elem buffer-invisibility-spec))
                 (and arg (not (= arg 0))))
             (remove-from-invisibility-spec elem)
-          (add-to-invisibility-spec elem))))))
+          (add-to-invisibility-spec elem))
+        (force-window-update (current-buffer))))))
 
 (defun diffsync-delete-file (arg)
   "Delete one file (specified by ARG)."
