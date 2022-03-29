@@ -26,7 +26,7 @@
 
 ;;; Commentary:
 
-;; Diffsync uses diff output as a base for directory synchronization.
+;; Diffsync uses recursive diff output as a base for directory synchronization.
 ;; There are shortcuts for the following operations: copy, move, delete, ediff,
 ;; find-file.
 
@@ -40,7 +40,7 @@
     ("e" . diffsync-ediff)
     ("f" . diffsync-find-file)
     ("m" . diffsync-move-file)
-    ("t" . diffsync-toggle)))
+    ("t" . diffsync-toggle-diff)))
 (easy-mmode-defmap diffsync-mode-map diffsync-bindings "Keymap for `diffsync'.")
 
 (define-derived-mode
@@ -156,7 +156,7 @@ Prompt user if ARG is not supplied."
       ((or '2 '?2) '(1))
       ((or '0 '?0) '(0 1))))
 
-(defun diffsync-toggle (&optional arg)
+(defun diffsync-toggle-diff (&optional arg)
   "Turn display of diff output on or off.
 If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
   (interactive)
@@ -180,7 +180,7 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
     (dolist (f filenames)
       (when (yes-or-no-p (concat "Delete " f "? "))
         (delete-file f)
-        (diffsync-toggle 0)
+        (diffsync-toggle-diff 0)
         (beginning-of-line)
         (insert "DELETED ")))))
 
