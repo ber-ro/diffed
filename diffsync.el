@@ -182,7 +182,8 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
                (member elem buffer-invisibility-spec))
           (and arg (not (= arg 0))))
       (remove-from-invisibility-spec elem)
-    (add-to-invisibility-spec elem)))
+    (add-to-invisibility-spec elem))
+  (force-window-update (current-buffer)))
 
 (defun diffsync-toggle-diff (&optional arg)
   "Turn display of diff output on or off.
@@ -192,8 +193,7 @@ For ARG see diffsync-toggle-invisibility."
     (move-to-column 0)
     (when (re-search-forward "^diff " (line-end-position) t)
       (let* ((filename (intern (car (diffsync-get-filenames)))))
-        (diffsync-toggle-invisibility `(,filename . t) arg)
-        (force-window-update (current-buffer))))))
+        (diffsync-toggle-invisibility `(,filename . t) arg)))))
 
 (defun diffsync-toggle-identical ()
   "Toggle display of identical files."
