@@ -7,7 +7,7 @@
 ;; Keywords: tools
 ;; URL: https://github.com/ber-ro/diffsync
 ;; Version: 0.1
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -35,12 +35,15 @@
 (require 'diff-mode)
 
 (defvar diffsync-bindings
-  `(("c" . diffsync-copy-file)
+  `(("O" . diffsync-find-file-other-buffer)
+    ("c" . diffsync-copy-file)
     ("d" . diffsync-delete-file)
     ("e" . diffsync-ediff)
     ("f" . diffsync-find-file)
+    ("i" . diffsync-toggle-identical)
     ("m" . diffsync-move-file)
-    ("t" . diffsync-toggle-diff)))
+    ("t" . diffsync-toggle-diff)
+    ("v" . diffsync-view-file)))
 (easy-mmode-defmap diffsync-mode-map diffsync-bindings "Keymap for `diffsync'.")
 
 (define-derived-mode
@@ -94,23 +97,6 @@ DIR1 and DIR2 are the directories to sync."
       (setq kwl (reverse kwl)))
     (font-lock-add-keywords nil kwl)))
 
-(defun diffsync-revert-buffer (&optional _arg _noconfirm)
-  "Rerun diff."
-  (interactive)
-  (let ((inhibit-read-only t)
-        start)
-    (erase-buffer)
-    (call-process "diff" nil t nil diffsync-diff-options diffsync-dir1 diffsync-dir2)
-    (goto-char (point-min))
-    (setq buffer-invisibility-spec nil)
-    (while (setq start (diffsync-find-diff-start))
-      (let ((inhibit-read-only t)
-            (filename (intern (car (diffsync-get-filenames))))
-            (end (diffsync-find-diff-end)))
-        (put-text-property start end 'invisible `(,filename . t))
-        (add-to-invisibility-spec `(,filename . t))))
-    (goto-char (point-min))))
-
 (defun diffsync-find-diff-start ()
   "Find position of diff command of next file."
   (if (re-search-forward "^diff .*" nil 1)
@@ -123,22 +109,53 @@ DIR1 and DIR2 are the directories to sync."
                  (1- (match-beginning 0))
                (point-max))))
 
+(defun diffsync-diff-ready (process _event)
+  "Prepare buffer when diff PROCESS has finished."
+  (with-current-buffer (process-buffer process)
+    (setq buffer-invisibility-spec nil)
+    (let ((inhibit-read-only t)
+          start)
+      (goto-char (point-min))
+      (while (setq start (diffsync-find-diff-start))
+        (let ((filename (intern (car (diffsync-get-filenames))))
+              (end (diffsync-find-diff-end)))
+          (put-text-property start end 'invisible `(,filename . t))
+          (add-to-invisibility-spec `(,filename . t))))
+      (goto-char (point-min))
+      (while (re-search-forward ".* are identical" nil 1)
+        (put-text-property (match-beginning 0) (1+ (match-end 0))
+                           'invisible (intern "identical")))
+      (goto-char (point-min)))))
+
+(defun diffsync-revert-buffer (&optional _arg _noconfirm)
+  "(Re)run diff."
+  (interactive)
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (make-process
+     :name "diffsync"
+     :command `("diff.exe" ,diffsync-diff-options ,diffsync-dir1 ,diffsync-dir2)
+     :buffer (current-buffer)
+     :sentinel 'diffsync-diff-ready)))
+
 (defun diffsync-get-filenames ()
   "Return filenames of current line as list (1 or 2 items)."
   (save-excursion
-    (beginning-of-line)
+    (move-to-column 0)
     (re-search-forward
      (concat
       "^diff " diffsync-diff-options
       " \"?\\(" diffsync-re-dir1 ".+?\\)\"?"
       " \"?\\(" diffsync-re-dir2 ".+?\\)\"?$"
       "\\|^Files \\(.*\\) and \\(.*\\) are identical"
+      "\\|^Binary files \\(.*\\) and \\(.*\\) differ"
       "\\|^Only in \\(.*\\): \\(.*\\)")
      (line-end-position) 1)
     (cond
      ((match-string 1) (mapcar #'match-string [1 2]))
      ((match-string 3) (mapcar #'match-string [3 4]))
-     ((match-string 5) (list (expand-file-name (match-string 6) (match-string 5)))))))
+     ((match-string 5) (mapcar #'match-string [5 6]))
+     ((match-string 7) (list (expand-file-name (match-string 8) (match-string 7)))))))
 
 (defun diffsync-get-filename (arg)
   "Select first or second or both files.
@@ -152,25 +169,34 @@ Query user, if ARG is required, but not supplied."
 Prompt user if ARG is not supplied."
   (pcase (or arg
              (read-char-choice "First/second/both files (1/2/0)? " '(?1 ?2 ?0)))
-      ((or '1 '?1) '(0))
-      ((or '2 '?2) '(1))
-      ((or '0 '?0) '(0 1))))
+    ((or '1 '?1) '(0))
+    ((or '2 '?2) '(1))
+    ((or '0 '?0) '(0 1))))
+
+(defun diffsync-toggle-invisibility (elem arg)
+  "Toggle invisibility of ELEM to ARG.
+If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
+  (if (or (and (not arg)
+               (member elem buffer-invisibility-spec))
+          (and arg (not (= arg 0))))
+      (remove-from-invisibility-spec elem)
+    (add-to-invisibility-spec elem)))
 
 (defun diffsync-toggle-diff (&optional arg)
   "Turn display of diff output on or off.
-If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
+For ARG see diffsync-toggle-invisibility."
   (interactive)
   (save-excursion
-    (beginning-of-line)
+    (move-to-column 0)
     (when (re-search-forward "^diff " (line-end-position) t)
-      (let* ((filename (intern (car (diffsync-get-filenames))))
-             (elem `(,filename . t)))
-        (if (or (and (not arg)
-                     (member elem buffer-invisibility-spec))
-                (and arg (not (= arg 0))))
-            (remove-from-invisibility-spec elem)
-          (add-to-invisibility-spec elem))
+      (let* ((filename (intern (car (diffsync-get-filenames)))))
+        (diffsync-toggle-invisibility `(,filename . t) arg)
         (force-window-update (current-buffer))))))
+
+(defun diffsync-toggle-identical ()
+  "Toggle display of identical files."
+  (interactive)
+  (diffsync-toggle-invisibility (intern "identical") nil))
 
 (defun diffsync-delete-file (arg)
   "Delete one file (specified by ARG)."
@@ -181,7 +207,7 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
       (when (yes-or-no-p (concat "Delete " f "? "))
         (delete-file f)
         (diffsync-toggle-diff 0)
-        (beginning-of-line)
+        (move-to-column 0)
         (insert "DELETED ")))))
 
 (defun diffsync-find-file (arg)
@@ -190,6 +216,18 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
   (let ((f (diffsync-get-filename arg)))
     (find-file (car f))
     (when (> (length f) 1) (find-file-other-window (nth 1 f)))))
+
+(defun diffsync-find-file-other-buffer (arg)
+  "Open current file in other buffer (first or second specifed by ARG)."
+  (interactive "P")
+  (let ((f (diffsync-get-filename arg)))
+    (find-file-other-window (car f))))
+
+(defun diffsync-view-file (arg)
+  "Open current file in other buffer (first or second specifed by ARG)."
+  (interactive "P")
+  (let ((f (diffsync-get-filename arg)))
+    (view-file (car f))))
 
 (defun diffsync-copy-file ()
   "Copy current file to other directory."
@@ -206,14 +244,14 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
 OP is copy or move
 TEXT is description for the message"
   (save-excursion
-    (beginning-of-line)
+    (move-to-column 0)
     (if (re-search-forward "^Only in " (line-end-position) t)
         (let* ((filename (car (diffsync-get-filename 1)))
                (other-filename (diffsync-get-other-filename filename))
                (inhibit-read-only t))
           (funcall op filename other-filename)
           (message (concat text " %s -> %s") filename other-filename)
-          (beginning-of-line)
+          (move-to-column 0)
           (insert (upcase text) " "))
       (message "File operation allowed only for files with only 1 instance."))))
 
