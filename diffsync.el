@@ -127,13 +127,15 @@ DIR1 and DIR2 are the directories to sync."
       (while (re-search-forward ".* are identical" nil 1)
         (put-text-property (match-beginning 0) (1+ (match-end 0))
                            'invisible (intern "identical")))
-      (goto-char (point-min)))))
+      (goto-char (point-min))))
+  (message "%s" "Diffsync running diff...done"))
 
 (defun diffsync-revert-buffer (&optional _arg _noconfirm)
   "(Re)run diff."
   (interactive)
   (let ((inhibit-read-only t))
     (erase-buffer)
+    (message "%s" "Diffsync running diff...")
     (make-process
      :name "diffsync"
      :command `("diff.exe" ,diffsync-diff-options ,diffsync-dir1 ,diffsync-dir2)
