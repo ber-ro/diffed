@@ -60,6 +60,8 @@ Some operations need to select a file to operate on. These are selected by
 numeric prefix keys. '1' selects the file below /dir-a (1st parameter), '2'
 selects the file below /dir-b (2nd parameter) and '0' selects both.
 
+Operations always work on the file(s) on the current line.
+
 For copy and move the source is the file on the current line and the target is
 the file that does not exist.
 
