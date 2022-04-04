@@ -60,8 +60,13 @@ Some operations need to select a file to operate on. These are selected by
 numeric prefix keys. '1' selects the file below /dir-a (1st parameter), '2'
 selects the file below /dir-b (2nd parameter) and '0' selects both.
 
+For copy and move the source is the file on the current line and the target is
+the file that does not exist.
+
 After copy/move/delete a text tag is inserted and further operations are not
-allowed on the respective file."
+allowed on the respective file.
+
+This mode only works with an english locale (LANG=C)."
   :group 'tools
   (setq-local revert-buffer-function #'diffsync-revert-buffer))
 
@@ -82,8 +87,8 @@ DIR1 and DIR2 are the directories to sync."
     (switch-to-buffer-other-window diffsync-buffer)
     (read-only-mode 1)
     (diffsync-mode)
-    (setq diffsync-dir1 (directory-file-name dir1))
-    (setq diffsync-dir2 (directory-file-name dir2))
+    (setq diffsync-dir1 (expand-file-name (directory-file-name dir1)))
+    (setq diffsync-dir2 (expand-file-name (directory-file-name dir2)))
     (setq diffsync-re-dir1 (regexp-quote diffsync-dir1))
     (setq diffsync-re-dir2 (regexp-quote diffsync-dir2))
     (diffsync-revert-buffer)
