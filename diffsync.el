@@ -37,7 +37,7 @@
 (require 'diff-mode)
 
 (defvar diffsync-bindings
-  `(("O" . diffsync-find-file-other-buffer)
+  `(("O" . diffsync-find-file-other-window)
     ("c" . diffsync-copy-file)
     ("d" . diffsync-delete-file)
     ("e" . diffsync-ediff)
@@ -138,7 +138,7 @@ DIR1 and DIR2 are the directories to sync."
     (message "%s" "Diffsync running diff...")
     (make-process
      :name "diffsync"
-     :command `("diff.exe" ,diffsync-diff-options ,diffsync-dir1 ,diffsync-dir2)
+     :command `("diff" ,diffsync-diff-options ,diffsync-dir1 ,diffsync-dir2)
      :buffer (current-buffer)
      :sentinel 'diffsync-diff-ready)))
 
@@ -221,7 +221,7 @@ For ARG see diffsync-toggle-invisibility."
     (find-file (car f))
     (when (> (length f) 1) (find-file-other-window (nth 1 f)))))
 
-(defun diffsync-find-file-other-buffer (arg)
+(defun diffsync-find-file-other-window (arg)
   "Open current file in other buffer (first or second specifed by ARG)."
   (interactive "P")
   (let ((f (diffsync-get-filename arg)))
