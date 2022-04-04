@@ -60,8 +60,8 @@ Some operations need to select a file to operate on. These are selected by
 numeric prefix keys. '1' selects the file below /dir-a (1st parameter), '2'
 selects the file below /dir-b (2nd parameter) and '0' selects both.
 
-After copy, move and rename a text tag is inserted and further operations are
-not allowed on the respective file."
+After copy/move/delete a text tag is inserted and further operations are not
+allowed on the respective file."
   :group 'tools
   (setq-local revert-buffer-function #'diffsync-revert-buffer))
 
@@ -236,24 +236,28 @@ For ARG see diffsync-toggle-invisibility."
 (defun diffsync-copy-file ()
   "Copy current file to other directory."
   (interactive)
-  (diffsync-file-op #'copy-file "copied"))
+  (let* ((dirp (file-directory-p (car (diffsync-get-filename 1))))
+         (func (if dirp #'copy-directory #'copy-file))
+         (args (if dirp '(t) '(nil t))))
+    (diffsync-file-op func "copied" args)))
 
 (defun diffsync-move-file ()
   "Move current file to other directory."
   (interactive)
-  (diffsync-file-op #'rename-file "moved"))
+  (diffsync-file-op #'rename-file "moved" '()))
 
-(defun diffsync-file-op (op text)
+(defun diffsync-file-op (op text args)
   "Get context for copy/move operation.
 OP is copy or move
-TEXT is description for the message"
+TEXT is description for the message
+ARGS are additional arguments for OP"
   (save-excursion
     (move-to-column 0)
     (if (re-search-forward "^Only in " (line-end-position) t)
         (let* ((filename (car (diffsync-get-filename 1)))
                (other-filename (diffsync-get-other-filename filename))
                (inhibit-read-only t))
-          (funcall op filename other-filename)
+          (apply op filename other-filename args)
           (message (concat text " %s -> %s") filename other-filename)
           (move-to-column 0)
           (insert (upcase text) " "))
