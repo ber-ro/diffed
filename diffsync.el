@@ -163,10 +163,11 @@ DIR1 and DIR2 are the directories to sync."
       "\\|^Only in \\(.*\\): \\(.*\\)")
      (line-end-position) 1)
     (cond
-     ((match-string 1) (mapcar #'match-string [1 2]))
-     ((match-string 3) (mapcar #'match-string [3 4]))
-     ((match-string 5) (mapcar #'match-string [5 6]))
-     ((match-string 7) (list (expand-file-name (match-string 8) (match-string 7)))))))
+     ((match-string 1) (mapcar #'match-string-no-properties [1 2]))
+     ((match-string 3) (mapcar #'match-string-no-properties [3 4]))
+     ((match-string 5) (mapcar #'match-string-no-properties [5 6]))
+     ((match-string 7)
+      (list (expand-file-name (match-string-no-properties 8) (match-string-no-properties 7)))))))
 
 (defun diffsync-get-filename (arg)
   "Select first or second or both files.
