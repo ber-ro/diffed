@@ -66,9 +66,7 @@ For copy and move the source is the file on the current line and the target is
 the file that does not exist.
 
 After copy/move/delete a text tag is inserted and further operations are not
-allowed on the respective file.
-
-This mode only works with an english locale (LANG=C)."
+allowed on the respective file."
   :group 'tools
   (setq-local revert-buffer-function #'diffsync-revert-buffer))
 
@@ -140,7 +138,8 @@ DIR1 and DIR2 are the directories to sync."
 (defun diffsync-revert-buffer (&optional _arg _noconfirm)
   "(Re)run diff."
   (interactive)
-  (let ((inhibit-read-only t))
+  (let ((inhibit-read-only t)
+        (process-environment (cons "LANG=C" process-environment)))
     (erase-buffer)
     (message "%s" "Diffsync running diff...")
     (make-process
