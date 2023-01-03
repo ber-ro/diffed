@@ -1,11 +1,11 @@
-;;; diffsync.el --- Use diff to allow syncing of directories -*- lexical-binding: t; -*-
+;;; diffed.el --- Use diff to allow syncing of directories -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022 Bernhard Rotter
 
 ;; Author: Bernhard Rotter <bernhard@b-rotter.de>
 ;; Created: 28 Mar 2022
 ;; Keywords: tools
-;; URL: https://github.com/ber-ro/diffsync
+;; URL: https://github.com/ber-ro/diffed
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "25.1"))
 
@@ -26,35 +26,35 @@
 
 ;;; Commentary:
 
-;; Diffsync uses recursive diff output as a base for directory synchronization.
+;; Diffed uses recursive diff output as a base for directory synchronization.
 ;; There are shortcuts for the following operations: copy, move, delete, ediff,
 ;; find-file.
 
-;; Usage: (diffsync "/dir/1" "/dir/2")
+;; Usage: (diffed "/dir/1" "/dir/2")
 
 ;;; Code:
 
 (require 'diff-mode)
 
-(defvar diffsync-bindings
-  `(("O" . diffsync-find-file-other-window)
-    ("c" . diffsync-copy-file)
-    ("d" . diffsync-delete-file)
-    ("e" . diffsync-ediff)
-    ("f" . diffsync-find-file)
-    ("i" . diffsync-toggle-identical)
-    ("m" . diffsync-move-file)
-    ("t" . diffsync-toggle-diff)
-    ("v" . diffsync-view-file)))
-(easy-mmode-defmap diffsync-mode-map diffsync-bindings "Keymap for `diffsync'.")
+(defvar diffed-bindings
+  `(("O" . diffed-find-file-other-window)
+    ("c" . diffed-copy-file)
+    ("d" . diffed-delete-file)
+    ("e" . diffed-ediff)
+    ("f" . diffed-find-file)
+    ("i" . diffed-toggle-identical)
+    ("m" . diffed-move-file)
+    ("t" . diffed-toggle-diff)
+    ("v" . diffed-view-file)))
+(easy-mmode-defmap diffed-mode-map diffed-bindings "Keymap for `diffed'.")
 
 (define-derived-mode
-  diffsync-mode diff-mode "DiffSync"
+  diffed-mode diff-mode "Diffed"
   "Major mode which uses recursive diff output as a base for synchronization.
 Only the list of files is visible on startup. Detailed file differences are
 hidden, but can be toggled.
 
-Example: (diffsync \"/dir-a/\" \"/dir-b/\")
+Example: (diffed \"/dir-a/\" \"/dir-b/\")
 
 Some operations need to select a file to operate on. These are selected by
 numeric prefix keys. '1' selects the file below /dir-a (1st parameter), '2'
@@ -68,64 +68,64 @@ the file that does not exist.
 After copy/move/delete a text tag is inserted and further operations are not
 allowed on the respective file."
   :group 'tools
-  (setq-local revert-buffer-function #'diffsync-revert-buffer))
+  (setq-local revert-buffer-function #'diffed-revert-buffer))
 
-(defvar-local diffsync-dir1 nil "First directory to compare.")
-(defvar-local diffsync-dir2 nil "Second directory to compare.")
-(defvar-local diffsync-re-dir1 nil "Regex of first directory to compare.")
-(defvar-local diffsync-re-dir2 nil "Regex of second directory to compare.")
-(defvar-local diffsync-diff-options "-rsu" "Options for diff invocation.")
-(defvar diffsync-buffer nil "Switch back to Diffsync.")
+(defvar-local diffed-dir1 nil "First directory to compare.")
+(defvar-local diffed-dir2 nil "Second directory to compare.")
+(defvar-local diffed-re-dir1 nil "Regex of first directory to compare.")
+(defvar-local diffed-re-dir2 nil "Regex of second directory to compare.")
+(defvar-local diffed-diff-options "-rsu" "Options for diff invocation.")
+(defvar diffed-buffer nil "Switch back to Diffed.")
 
 ;;;###autoload
-(defun diffsync (dir1 dir2)
+(defun diffed (dir1 dir2)
   "Use recursive diff to enable syncing of directories.
 DIR1 and DIR2 are the directories to sync."
   (interactive "DCompare directory: \nD with directory: ")
-  (let ((diffsync-buffer (concat "diffsync " dir1 "|" dir2)))
-    (get-buffer-create diffsync-buffer)
-    (switch-to-buffer-other-window diffsync-buffer)
+  (let ((diffed-buffer (concat "diffed " dir1 "|" dir2)))
+    (get-buffer-create diffed-buffer)
+    (switch-to-buffer-other-window diffed-buffer)
     (read-only-mode 1)
-    (diffsync-mode)
-    (setq diffsync-dir1 (expand-file-name (directory-file-name dir1)))
-    (setq diffsync-dir2 (expand-file-name (directory-file-name dir2)))
-    (setq diffsync-re-dir1 (regexp-quote diffsync-dir1))
-    (setq diffsync-re-dir2 (regexp-quote diffsync-dir2))
-    (diffsync-revert-buffer)
-    (diffsync-keywords)))
+    (diffed-mode)
+    (setq diffed-dir1 (expand-file-name (directory-file-name dir1)))
+    (setq diffed-dir2 (expand-file-name (directory-file-name dir2)))
+    (setq diffed-re-dir1 (regexp-quote diffed-dir1))
+    (setq diffed-re-dir2 (regexp-quote diffed-dir2))
+    (diffed-revert-buffer)
+    (diffed-keywords)))
 
-(defun diffsync-keywords ()
+(defun diffed-keywords ()
   "Add font-lock keywords."
-  (let ((kwl `((,diffsync-dir1 . 'diff-refine-removed)
-               (,diffsync-dir2 . 'diff-refine-added))))
+  (let ((kwl `((,diffed-dir1 . 'diff-refine-removed)
+               (,diffed-dir2 . 'diff-refine-added))))
     ;; if one directory is a sub-directory of the other, then order makes a
     ;; difference
-    (when (< (length diffsync-dir1) (length diffsync-dir2))
+    (when (< (length diffed-dir1) (length diffed-dir2))
       (setq kwl (reverse kwl)))
     (font-lock-add-keywords nil kwl)))
 
-(defun diffsync-find-diff-start ()
+(defun diffed-find-diff-start ()
   "Find position of diff command of next file."
   (if (re-search-forward "^diff .*" nil 1)
       (match-end 0)
     nil))
 
-(defun diffsync-find-diff-end ()
+(defun diffed-find-diff-end ()
   "Find position of diff end of current file."
   (goto-char (if (re-search-forward "^[[:alpha:]]" nil 1)
                  (1- (match-beginning 0))
                (point-max))))
 
-(defun diffsync-diff-ready (process _event)
+(defun diffed-diff-ready (process _event)
   "Prepare buffer when diff PROCESS has finished."
   (with-current-buffer (process-buffer process)
     (setq buffer-invisibility-spec nil)
     (let ((inhibit-read-only t)
           start)
       (goto-char (point-min))
-      (while (setq start (diffsync-find-diff-start))
-        (let ((filename (intern (car (diffsync-get-filenames))))
-              (end (diffsync-find-diff-end)))
+      (while (setq start (diffed-find-diff-start))
+        (let ((filename (intern (car (diffed-get-filenames))))
+              (end (diffed-find-diff-end)))
           (put-text-property start end 'invisible `(,filename . t))
           (add-to-invisibility-spec `(,filename . t))))
       (goto-char (point-min))
@@ -133,30 +133,30 @@ DIR1 and DIR2 are the directories to sync."
         (put-text-property (match-beginning 0) (1+ (match-end 0))
                            'invisible (intern "identical")))
       (goto-char (point-min))))
-  (message "%s" "Diffsync running diff...done"))
+  (message "%s" "Diffed running diff...done"))
 
-(defun diffsync-revert-buffer (&optional _arg _noconfirm)
+(defun diffed-revert-buffer (&optional _arg _noconfirm)
   "(Re)run diff."
   (interactive)
   (let ((inhibit-read-only t)
         (process-environment (cons "LANG=C" process-environment)))
     (erase-buffer)
-    (message "%s" "Diffsync running diff...")
+    (message "%s" "Diffed running diff...")
     (make-process
-     :name "diffsync"
-     :command `("diff" ,diffsync-diff-options ,diffsync-dir1 ,diffsync-dir2)
+     :name "diffed"
+     :command `("diff" ,diffed-diff-options ,diffed-dir1 ,diffed-dir2)
      :buffer (current-buffer)
-     :sentinel 'diffsync-diff-ready)))
+     :sentinel 'diffed-diff-ready)))
 
-(defun diffsync-get-filenames ()
+(defun diffed-get-filenames ()
   "Return filenames of current line as list (1 or 2 items)."
   (save-excursion
     (move-to-column 0)
     (re-search-forward
      (concat
-      "^diff " diffsync-diff-options
-      " \"?\\(" diffsync-re-dir1 ".+?\\)\"?"
-      " \"?\\(" diffsync-re-dir2 ".+?\\)\"?$"
+      "^diff " diffed-diff-options
+      " \"?\\(" diffed-re-dir1 ".+?\\)\"?"
+      " \"?\\(" diffed-re-dir2 ".+?\\)\"?$"
       "\\|^Files \\(.*\\) and \\(.*\\) are identical"
       "\\|^Binary files \\(.*\\) and \\(.*\\) differ"
       "\\|^Only in \\(.*\\): \\(.*\\)")
@@ -170,14 +170,14 @@ DIR1 and DIR2 are the directories to sync."
                               (match-string-no-properties 7))))
      (t (error "Not on a header line (diff ..., Only in ..., ... are identical)")))))
 
-(defun diffsync-get-filename (arg)
+(defun diffed-get-filename (arg)
   "Select first or second or both files.
 Query user, if ARG is required, but not supplied."
-  (let ((files (diffsync-get-filenames)))
+  (let ((files (diffed-get-filenames)))
     (cond ((= 1 (length files)) files)
-          (t (mapcar (lambda (arg) (nth arg files)) (diffsync-choice arg))))))
+          (t (mapcar (lambda (arg) (nth arg files)) (diffed-choice arg))))))
 
-(defun diffsync-choice (arg)
+(defun diffed-choice (arg)
   "Return indices of selected files (0, 1, 0/1).
 Prompt user if ARG is not supplied."
   (pcase (or arg
@@ -186,7 +186,7 @@ Prompt user if ARG is not supplied."
     ((or '2 '?2) '(1))
     ((or '0 '?0) '(0 1))))
 
-(defun diffsync-toggle-invisibility (elem arg)
+(defun diffed-toggle-invisibility (elem arg)
   "Toggle invisibility of ELEM to ARG.
 If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
   (if (or (and (not arg)
@@ -196,66 +196,66 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
     (add-to-invisibility-spec elem))
   (force-window-update (current-buffer)))
 
-(defun diffsync-toggle-diff (&optional arg)
+(defun diffed-toggle-diff (&optional arg)
   "Turn display of diff output on or off.
-For ARG see diffsync-toggle-invisibility."
+For ARG see diffed-toggle-invisibility."
   (interactive)
   (save-excursion
     (move-to-column 0)
     (when (re-search-forward "^diff " (line-end-position) t)
-      (let* ((filename (intern (car (diffsync-get-filenames)))))
-        (diffsync-toggle-invisibility `(,filename . t) arg)))))
+      (let* ((filename (intern (car (diffed-get-filenames)))))
+        (diffed-toggle-invisibility `(,filename . t) arg)))))
 
-(defun diffsync-toggle-identical ()
+(defun diffed-toggle-identical ()
   "Toggle display of identical files."
   (interactive)
-  (diffsync-toggle-invisibility (intern "identical") nil))
+  (diffed-toggle-invisibility (intern "identical") nil))
 
-(defun diffsync-delete-file (arg)
+(defun diffed-delete-file (arg)
   "Delete one file (specified by ARG)."
   (interactive "P")
   (let ((inhibit-read-only t)
-        (filenames (diffsync-get-filename arg)))
+        (filenames (diffed-get-filename arg)))
     (dolist (f filenames)
       (when (yes-or-no-p (concat "Delete " f "? "))
         (delete-file f)
-        (diffsync-toggle-diff 0)
+        (diffed-toggle-diff 0)
         (move-to-column 0)
         (insert "DELETED ")))))
 
-(defun diffsync-find-file (arg)
+(defun diffed-find-file (arg)
   "Open current file in buffer (first or second specifed by ARG)."
   (interactive "P")
-  (let ((f (diffsync-get-filename arg)))
+  (let ((f (diffed-get-filename arg)))
     (find-file (car f))
     (when (> (length f) 1) (find-file-other-window (nth 1 f)))))
 
-(defun diffsync-find-file-other-window (arg)
+(defun diffed-find-file-other-window (arg)
   "Open current file in other buffer (first or second specifed by ARG)."
   (interactive "P")
-  (let ((f (diffsync-get-filename arg)))
+  (let ((f (diffed-get-filename arg)))
     (find-file-other-window (car f))))
 
-(defun diffsync-view-file (arg)
+(defun diffed-view-file (arg)
   "Open current file in other buffer (first or second specifed by ARG)."
   (interactive "P")
-  (let ((f (diffsync-get-filename arg)))
+  (let ((f (diffed-get-filename arg)))
     (view-file (car f))))
 
-(defun diffsync-copy-file ()
+(defun diffed-copy-file ()
   "Copy current file to other directory."
   (interactive)
-  (let* ((dirp (file-directory-p (car (diffsync-get-filename 1))))
+  (let* ((dirp (file-directory-p (car (diffed-get-filename 1))))
          (func (if dirp #'copy-directory #'copy-file))
          (args (if dirp '(t) '(nil t))))
-    (diffsync-file-op func "copied" args)))
+    (diffed-file-op func "copied" args)))
 
-(defun diffsync-move-file ()
+(defun diffed-move-file ()
   "Move current file to other directory."
   (interactive)
-  (diffsync-file-op #'rename-file "moved" '()))
+  (diffed-file-op #'rename-file "moved" '()))
 
-(defun diffsync-file-op (op text args)
+(defun diffed-file-op (op text args)
   "Get context for copy/move operation.
 OP is copy or move
 TEXT is description for the message
@@ -263,8 +263,8 @@ ARGS are additional arguments for OP"
   (save-excursion
     (move-to-column 0)
     (if (re-search-forward "^Only in " (line-end-position) t)
-        (let* ((filename (car (diffsync-get-filename 1)))
-               (other-filename (diffsync-get-other-filename filename))
+        (let* ((filename (car (diffed-get-filename 1)))
+               (other-filename (diffed-get-other-filename filename))
                (inhibit-read-only t))
           (apply op filename other-filename args)
           (message (concat text " %s -> %s") filename other-filename)
@@ -272,29 +272,29 @@ ARGS are additional arguments for OP"
           (insert (upcase text) " "))
       (message "File operation allowed only for files with only 1 instance."))))
 
-(defun diffsync-get-other-filename (filename)
+(defun diffed-get-other-filename (filename)
   "Get other file.
 FILENAME is below first (return second) or second (return first) diff directory
 parameter."
-  (let* ((relative1 (file-relative-name filename diffsync-dir1))
-         (relative2 (file-relative-name filename diffsync-dir2))
+  (let* ((relative1 (file-relative-name filename diffed-dir1))
+         (relative2 (file-relative-name filename diffed-dir2))
          (firstp (< (length relative1) (length relative2))))
     (expand-file-name (if firstp relative1 relative2)
-                      (if firstp diffsync-dir2 diffsync-dir1))))
+                      (if firstp diffed-dir2 diffed-dir1))))
 
-(defun diffsync-ediff ()
+(defun diffed-ediff ()
   "Invoke ediff for current file."
   (interactive)
   (save-excursion
-    (setq diffsync-buffer (current-buffer))
-    (add-hook 'ediff-quit-hook #'diffsync-ediff-hook)
-    (apply #'ediff (diffsync-get-filenames))))
+    (setq diffed-buffer (current-buffer))
+    (add-hook 'ediff-quit-hook #'diffed-ediff-hook)
+    (apply #'ediff (diffed-get-filenames))))
 
-(defun diffsync-ediff-hook ()
-  "Switch back to Diffsync."
-  (switch-to-buffer diffsync-buffer)
+(defun diffed-ediff-hook ()
+  "Switch back to Diffed."
+  (switch-to-buffer diffed-buffer)
   (delete-other-windows)
-  (remove-hook 'ediff-quit-hook #'diffsync-ediff-hook))
+  (remove-hook 'ediff-quit-hook #'diffed-ediff-hook))
 
-(provide 'diffsync)
-;;; diffsync.el ends here
+(provide 'diffed)
+;;; diffed.el ends here
