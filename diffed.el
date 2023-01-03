@@ -198,7 +198,7 @@ If ARG is nil, then toggle. If ARG is zero, then turn off. Else turn on."
 
 (defun diffed-toggle-diff (&optional arg)
   "Turn display of diff output on or off.
-For ARG see diffed-toggle-invisibility."
+For ARG see `diffed-toggle-invisibility'."
   (interactive)
   (save-excursion
     (move-to-column 0)
