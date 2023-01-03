@@ -1,4 +1,4 @@
-;;; diffed.el --- Use diff to allow syncing of directories -*- lexical-binding: t; -*-
+;;; diffed.el --- Diffed is for diff like Dired is for ls -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2022 Bernhard Rotter
 
