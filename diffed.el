@@ -6,7 +6,7 @@
 ;; Created: 28 Mar 2022
 ;; Keywords: tools
 ;; URL: https://github.com/ber-ro/diffed
-;; Version: 0.1
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -116,7 +116,7 @@ DIR1 and DIR2 are the directories to sync."
                  (1- (match-beginning 0))
                (point-max))))
 
-(defun diffed-diff-ready (process _event)
+(defun diffed-parse-diff (process _event)
   "Prepare buffer when diff PROCESS has finished."
   (with-current-buffer (process-buffer process)
     (setq buffer-invisibility-spec nil)
@@ -129,9 +129,12 @@ DIR1 and DIR2 are the directories to sync."
           (put-text-property start end 'invisible `(,filename . t))
           (add-to-invisibility-spec `(,filename . t))))
       (goto-char (point-min))
-      (while (re-search-forward ".* are identical" nil 1)
-        (put-text-property (match-beginning 0) (1+ (match-end 0))
-                           'invisible (intern "identical")))
+      (while (setq match (text-property-search-forward 'invisible nil t))
+        (goto-char (prop-match-beginning match))
+        (let ((end (prop-match-end match)))
+          (while (re-search-forward ".* are identical" end 1)
+            (put-text-property (match-beginning 0) (1+ (match-end 0))
+                               'invisible (intern "identical")))))
       (goto-char (point-min))))
   (message "%s" "Diffed running diff...done"))
 
@@ -146,7 +149,7 @@ DIR1 and DIR2 are the directories to sync."
      :name "diffed"
      :command `("diff" ,diffed-diff-options ,diffed-dir1 ,diffed-dir2)
      :buffer (current-buffer)
-     :sentinel 'diffed-diff-ready)))
+     :sentinel 'diffed-parse-diff)))
 
 (defun diffed-get-filenames ()
   "Return filenames of current line as list (1 or 2 items)."
