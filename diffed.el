@@ -6,8 +6,8 @@
 ;; Created: 28 Mar 2022
 ;; Keywords: tools
 ;; URL: https://github.com/ber-ro/diffed
-;; Version: 0.1.1
-;; Package-Requires: ((emacs "25.1"))
+;; Version: 0.1.2
+;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -35,6 +35,7 @@
 ;;; Code:
 
 (require 'diff-mode)
+(require 'text-property-search)
 
 (defvar diffed-bindings
   `(("O" . diffed-find-file-other-window)
@@ -129,12 +130,13 @@ DIR1 and DIR2 are the directories to sync."
           (put-text-property start end 'invisible `(,filename . t))
           (add-to-invisibility-spec `(,filename . t))))
       (goto-char (point-min))
-      (while (setq match (text-property-search-forward 'invisible nil t))
-        (goto-char (prop-match-beginning match))
-        (let ((end (prop-match-end match)))
-          (while (re-search-forward ".* are identical" end 1)
-            (put-text-property (match-beginning 0) (1+ (match-end 0))
-                               'invisible (intern "identical")))))
+      (let (match)
+        (while (setq match (text-property-search-forward 'invisible nil t))
+          (goto-char (prop-match-beginning match))
+          (let ((end (prop-match-end match)))
+            (while (re-search-forward ".* are identical" end 1)
+              (put-text-property (match-beginning 0) (1+ (match-end 0))
+                                 'invisible (intern "identical"))))))
       (goto-char (point-min))))
   (message "%s" "Diffed running diff...done"))
 
