@@ -6,7 +6,7 @@
 ;; Created: 28 Mar 2022
 ;; Keywords: tools
 ;; URL: https://github.com/ber-ro/diffed
-;; Version: 0.1.2
+;; Version: 0.2
 ;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -175,18 +175,24 @@ DIR1 and DIR2 are the directories to sync."
                               (match-string-no-properties 7))))
      (t (error "Not on a header line (diff ..., Only in ..., ... are identical)")))))
 
-(defun diffed-get-filename (arg)
+(defun diffed-get-filename (&optional arg single)
   "Select first or second or both files.
 Query user, if ARG is required, but not supplied."
   (let ((files (diffed-get-filenames)))
     (cond ((= 1 (length files)) files)
-          (t (mapcar (lambda (arg) (nth arg files)) (diffed-choice arg))))))
+          (t (mapcar (lambda (arg) (nth arg files)) (diffed-choice arg single))))))
 
-(defun diffed-choice (arg)
+(defun diffed-choice-prompt (single)
+  (let ((prompt (if single
+                 "First/second file (1/2)? "
+               "First/second/both file(s) (1/2/0)? "))
+        (char0 (if single nil ?0)))
+    (read-char-choice prompt '(?1 ?2 char0))))
+
+(defun diffed-choice (arg single)
   "Return indices of selected files (0, 1, 0/1).
 Prompt user if ARG is not supplied."
-  (pcase (or arg
-             (read-char-choice "First/second/both files (1/2/0)? " '(?1 ?2 ?0)))
+  (pcase (or arg (diffed-choice-prompt single))
     ((or '1 '?1) '(0))
     ((or '2 '?2) '(1))
     ((or '0 '?0) '(0 1))))
@@ -252,13 +258,13 @@ For ARG see `diffed-toggle-invisibility'."
   (interactive)
   (let* ((dirp (file-directory-p (car (diffed-get-filename 1))))
          (func (if dirp #'copy-directory #'copy-file))
-         (args (if dirp '(t) '(nil t))))
+         (args (if dirp '(t) '(1 t))))
     (diffed-file-op func "copied" args)))
 
 (defun diffed-move-file ()
   "Move current file to other directory."
   (interactive)
-  (diffed-file-op #'rename-file "moved" '()))
+  (diffed-file-op #'rename-file "moved" '(1)))
 
 (defun diffed-file-op (op text args)
   "Get context for copy/move operation.
@@ -267,15 +273,15 @@ TEXT is description for the message
 ARGS are additional arguments for OP"
   (save-excursion
     (move-to-column 0)
-    (if (re-search-forward "^Only in " (line-end-position) t)
-        (let* ((filename (car (diffed-get-filename 1)))
-               (other-filename (diffed-get-other-filename filename))
-               (inhibit-read-only t))
-          (apply op filename other-filename args)
-          (message (concat text " %s -> %s") filename other-filename)
-          (move-to-column 0)
-          (insert (upcase text) " "))
-      (message "File operation allowed only for files with only 1 instance."))))
+    (if (re-search-forward "^Files .* and .* are identical" (line-end-position) t)
+        (message "Nothing todo.")
+      (let* ((filename (car (diffed-get-filename nil t)))
+             (other-filename (diffed-get-other-filename filename))
+             (inhibit-read-only t))
+        (apply op filename other-filename args)
+        (message (concat text " %s -> %s") filename other-filename)
+        (move-to-column 0)
+        (insert (upcase text) " ")))))
 
 (defun diffed-get-other-filename (filename)
   "Get other file.
