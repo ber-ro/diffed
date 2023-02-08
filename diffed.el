@@ -6,7 +6,7 @@
 ;; Created: 28 Mar 2022
 ;; Keywords: tools
 ;; URL: https://github.com/ber-ro/diffed
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1"))
 
 ;; This file is not part of GNU Emacs.
@@ -177,21 +177,25 @@ DIR1 and DIR2 are the directories to sync."
 
 (defun diffed-get-filename (&optional arg single)
   "Select first or second or both files.
-Query user, if ARG is required, but not supplied."
+Query user, if ARG is required, but not supplied.
+SINGLE restricts the selection to one file only."
   (let ((files (diffed-get-filenames)))
     (cond ((= 1 (length files)) files)
           (t (mapcar (lambda (arg) (nth arg files)) (diffed-choice arg single))))))
 
 (defun diffed-choice-prompt (single)
+  "Prompt user to select first or second or both files.
+SINGLE restricts the selection to one file only."
   (let ((prompt (if single
-                 "First/second file (1/2)? "
-               "First/second/both file(s) (1/2/0)? "))
+                    "First/second file (1/2)? "
+                  "First/second/both file(s) (1/2/0)? "))
         (char0 (if single nil ?0)))
-    (read-char-choice prompt '(?1 ?2 char0))))
+    (read-char-choice prompt `(?1 ?2 ,char0))))
 
 (defun diffed-choice (arg single)
   "Return indices of selected files (0, 1, 0/1).
-Prompt user if ARG is not supplied."
+Prompt user if ARG is not supplied.
+SINGLE restricts the selection to one file only."
   (pcase (or arg (diffed-choice-prompt single))
     ((or '1 '?1) '(0))
     ((or '2 '?2) '(1))
