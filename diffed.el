@@ -71,11 +71,13 @@ allowed on the respective file."
   :group 'tools
   (setq-local revert-buffer-function #'diffed-revert-buffer))
 
+(defcustom diffed-diff-options "-rsu" "Options for diff invocation."
+  :type 'string
+  :group 'diff)
 (defvar-local diffed-dir1 nil "First directory to compare.")
 (defvar-local diffed-dir2 nil "Second directory to compare.")
 (defvar-local diffed-re-dir1 nil "Regex of first directory to compare.")
 (defvar-local diffed-re-dir2 nil "Regex of second directory to compare.")
-(defvar-local diffed-diff-options "-rsu" "Options for diff invocation.")
 (defvar diffed-buffer nil "Switch back to Diffed.")
 
 ;;;###autoload
@@ -149,7 +151,7 @@ DIR1 and DIR2 are the directories to sync."
     (message "%s" "Diffed running diff...")
     (make-process
      :name "diffed"
-     :command `("diff" ,diffed-diff-options ,diffed-dir1 ,diffed-dir2)
+     :command (flatten-tree `("diff" ,(split-string diffed-diff-options) ,diffed-dir1 ,diffed-dir2))
      :buffer (current-buffer)
      :sentinel 'diffed-parse-diff)))
 
@@ -159,7 +161,7 @@ DIR1 and DIR2 are the directories to sync."
     (move-to-column 0)
     (re-search-forward
      (concat
-      "^diff " diffed-diff-options
+      "^diff .*"
       " \"?\\(" diffed-re-dir1 ".+?\\)\"?"
       " \"?\\(" diffed-re-dir2 ".+?\\)\"?$"
       "\\|^Files \\(.*\\) and \\(.*\\) are identical"
